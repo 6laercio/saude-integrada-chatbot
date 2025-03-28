@@ -15,8 +15,8 @@ Um chatbot para WhatsApp que permite agendamento de consultas e fornece informa�
 
 - Node.js v22+
 - pnpm
-- Docker e Docker Compose (opcional, para desenvolvimento local)
-- Contas ativas no Neon (PostgreSQL) e Upstash (Redis)
+- Docker e Docker Compose (para desenvolvimento local)
+- Contas ativas no Neon (PostgreSQL) e Upstash (Redis) para produção
 - Credenciais para WhatsApp Business API e OpenAI
 
 ## Configuração do Ambiente
@@ -42,8 +42,8 @@ Um chatbot para WhatsApp que permite agendamento de consultas e fornece informa�
 
    Edite o arquivo `.env` com suas credenciais:
 
-   - `DATABASE_URL`: URL de conexão com o PostgreSQL (Neon)
-   - `REDIS_URL`: URL de conexão com o Redis (Upstash)
+   - `DATABASE_URL`: URL de conexão com o PostgreSQL (Neon ou Docker local)
+   - `REDIS_URL`: URL de conexão com o Redis (Upstash ou Docker local)
    - `WHATSAPP_TOKEN`: Token de autenticação da API do WhatsApp
    - `WHATSAPP_PHONE_NUMBER_ID`: ID do número de telefone do WhatsApp Business
    - `WHATSAPP_VERIFY_TOKEN`: Token de verificação do webhook
@@ -51,19 +51,76 @@ Um chatbot para WhatsApp que permite agendamento de consultas e fornece informa�
 
 ## Executando o Projeto
 
-### Desenvolvimento
+### Desenvolvimento com Docker (Recomendado)
+
+O projeto está configurado para desenvolvimento local usando Docker. Isso permite executar a aplicação completa com PostgreSQL e Redis sem instalá-los na sua máquina.
+
+1. Verifique se o arquivo `.env` está configurado (veja a seção anterior)
+
+2. Inicie os serviços com Docker Compose:
+
+   ```bash
+   docker compose up -d
+   ```
+
+   Isso iniciará três containers:
+
+   - `app`: A aplicação Node.js/Fastify
+   - `postgres`: Banco de dados PostgreSQL local
+   - `redis`: Servidor Redis local
+
+3. Acesse a API em `http://localhost:3000`
+
+4. Para visualizar os logs em tempo real:
+
+   ```bash
+   docker compose logs -f
+   ```
+
+5. Para parar os serviços:
+
+   ```bash
+   docker compose down
+   ```
+
+#### Script auxiliar para desenvolvimento
+
+Para facilitar o desenvolvimento, você pode usar o script `docker-dev.sh`:
+
+```bash
+# Torne o script executável
+chmod +x scripts/docker-dev.sh
+
+# Inicie os serviços
+./scripts/docker-dev.sh start
+
+# Visualize os logs
+./scripts/docker-dev.sh logs
+
+# Pare os serviços
+./scripts/docker-dev.sh stop
+
+# Veja todos os comandos disponíveis
+./scripts/docker-dev.sh help
+```
+
+#### Serviços e portas (Docker)
+
+- **Aplicação:** http://localhost:3000
+- **PostgreSQL:** localhost:5432
+  - Usuário: `postgres`
+  - Senha: `postgres`
+  - Database: `saudeintegrada`
+- **Redis:** localhost:6379
+
+### Desenvolvimento sem Docker
 
 ```bash
 # Executar em modo de desenvolvimento
 pnpm dev
 ```
 
-### Docker
-
-```bash
-# Construir e executar com Docker Compose
-docker compose up
-```
+Neste caso, você precisará ter PostgreSQL e Redis instalados localmente ou usar as versões hospedadas no Neon e Upstash.
 
 ### Produção
 
@@ -97,6 +154,8 @@ saude-integrada-chatbot/
 ├── .prettierrc              # Configuração do Prettier
 ├── compose.yaml             # Configuração do Docker Compose
 ├── Dockerfile               # Definição do container Docker
+├── scripts/                 # Scripts auxiliares
+│   └── docker-dev.sh        # Script para desenvolvimento com Docker
 ├── package.json             # Dependências e scripts
 ├── tsconfig.json            # Configuração do TypeScript
 └── README.md                # Este arquivo
@@ -106,11 +165,15 @@ saude-integrada-chatbot/
 
 ### Neon PostgreSQL
 
-Este projeto utiliza o [Neon](https://neon.tech/) como banco de dados PostgreSQL serverless. Configure sua instância no Neon e obtenha a URL de conexão para adicionar à variável `DATABASE_URL` no arquivo `.env`.
+Este projeto utiliza o [Neon](https://neon.tech/) como banco de dados PostgreSQL serverless em produção. Configure sua instância no Neon e obtenha a URL de conexão para adicionar à variável `DATABASE_URL` no arquivo `.env`.
+
+Para desenvolvimento local, o Docker Compose configura automaticamente um banco PostgreSQL.
 
 ### Upstash Redis
 
-Para cache e gerenciamento de sessões, utilizamos o [Upstash](https://upstash.com/) como Redis serverless. Configure uma instância no Upstash e adicione a URL de conexão à variável `REDIS_URL` no arquivo `.env`.
+Para cache e gerenciamento de sessões em produção, utilizamos o [Upstash](https://upstash.com/) como Redis serverless. Configure uma instância no Upstash e adicione a URL de conexão à variável `REDIS_URL` no arquivo `.env`.
+
+Para desenvolvimento local, o Docker Compose configura automaticamente um servidor Redis.
 
 ## Métricas de Sucesso
 
