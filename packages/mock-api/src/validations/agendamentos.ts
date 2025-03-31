@@ -7,7 +7,12 @@ const statusEnum = ['agendado', 'confirmado', 'cancelado', 'realizado', 'ausente
 export const createAgendamentoSchema = z.object({
   pacienteId: z.number().int().positive(),
   medicoId: z.number().int().positive(),
-  data: z.string().datetime(),
+  data: z.preprocess((arg) => {
+    if (typeof arg === 'string' || arg instanceof Date) {
+      return new Date(arg);
+    }
+    return arg;
+  }, z.date()),
   status: z.enum(statusEnum).default('agendado'),
   observacoes: z.string().optional(),
 });
@@ -31,7 +36,6 @@ export const getAgendamentosQuerySchema = z
   })
   .optional();
 
-// Tipos inferidos
 export type CreateAgendamentoDTO = z.infer<typeof createAgendamentoSchema>;
 export type UpdateAgendamentoDTO = z.infer<typeof updateAgendamentoSchema>;
 export type GetAgendamentoParamsDTO = z.infer<typeof getAgendamentoParamsSchema>;

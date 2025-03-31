@@ -92,6 +92,7 @@ export async function createExame(
   try {
     const newExame = createExameSchema.parse(request.body);
 
+    // Verificar se o paciente existe
     const pacienteExiste = await db
       .select()
       .from(pacientes)
@@ -124,12 +125,14 @@ export async function updateExame(
     const { id } = getExameParamsSchema.parse(request.params);
     const updateData = updateExameSchema.parse(request.body);
 
+    // Verificar se o exame existe
     const existingExame = await db.select().from(exames).where(eq(exames.id, id));
 
     if (existingExame.length === 0) {
       return reply.code(404).send({ error: 'Exame não encontrado' });
     }
 
+    // Se estiver atualizando o paciente, verificar se existe
     if (updateData.pacienteId) {
       const pacienteExiste = await db
         .select()
@@ -141,14 +144,9 @@ export async function updateExame(
       }
     }
 
-    // Converter a data se necessário
-    // if (updateData.data) {
-    //   updateData.data = new Date(updateData.data);
-    // }
+    const result = await db.update(exames).set(updateData).where(eq(exames.id, id)).returning();
 
-    // const result = await db.update(exames).set(updateData).where(eq(exames.id, id)).returning();
-
-    // return reply.code(200).send(result[0]);
+    return reply.code(200).send(result[0]);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Erro ao atualizar exame' });
@@ -162,6 +160,7 @@ export async function deleteExame(
   try {
     const { id } = getExameParamsSchema.parse(request.params);
 
+    // Verificar se o exame existe
     const existingExame = await db.select().from(exames).where(eq(exames.id, id));
 
     if (existingExame.length === 0) {

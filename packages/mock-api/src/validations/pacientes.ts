@@ -6,7 +6,14 @@ export const createPacienteSchema = z.object({
   nome: z.string().min(3).max(100),
   telefone: z.string().min(10).max(15),
   email: z.string().email().optional(),
-  dataNascimento: z.string().datetime().optional(),
+  dataNascimento: z
+    .preprocess((arg) => {
+      if (typeof arg === 'string' || arg instanceof Date) {
+        return new Date(arg);
+      }
+      return arg;
+    }, z.date())
+    .optional(),
   convenio: z.enum(convenioEnum.enumValues).optional(),
   numeroConvenio: z.string().optional(),
 });
@@ -19,7 +26,7 @@ export const getPacienteParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-// Validação para parâmetros de query
+// Validação para parâmetros de query (filtros)
 export const getPacientesQuerySchema = z
   .object({
     nome: z.string().optional(),

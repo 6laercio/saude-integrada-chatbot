@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../db/index.js';
 import { agendamentos, medicos, pacientes } from '../db/schema.js';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, ne } from 'drizzle-orm';
 import {
   CreateAgendamentoDTO,
   UpdateAgendamentoDTO,
@@ -103,6 +103,7 @@ export async function createAgendamento(
   try {
     const newAgendamento = createAgendamentoSchema.parse(request.body);
 
+    // Verificar se o paciente existe
     const pacienteExiste = await db
       .select()
       .from(pacientes)
@@ -112,6 +113,7 @@ export async function createAgendamento(
       return reply.code(400).send({ error: 'Paciente não encontrado' });
     }
 
+    // Verificar se o médico existe
     const medicoExiste = await db
       .select()
       .from(medicos)
@@ -121,9 +123,10 @@ export async function createAgendamento(
       return reply.code(400).send({ error: 'Médico não encontrado' });
     }
 
+    // Verificar se já existe um agendamento no mesmo horário para o mesmo médico
     const agendaData = new Date(newAgendamento.data);
     const agendaDataFim = new Date(agendaData);
-    agendaDataFim.setMinutes(agendaDataFim.getMinutes() + 30); // consulta de 30 minutos
+    agendaDataFim.setMinutes(agendaDataFim.getMinutes() + 30); // Consulta típica de 30 minutos
 
     const agendamentosConflitantes = await db
       .select()
@@ -166,12 +169,14 @@ export async function updateAgendamento(
     const { id } = getAgendamentoParamsSchema.parse(request.params);
     const updateData = updateAgendamentoSchema.parse(request.body);
 
+    // Verificar se o agendamento existe
     const existingAgendamento = await db.select().from(agendamentos).where(eq(agendamentos.id, id));
 
     if (existingAgendamento.length === 0) {
       return reply.code(404).send({ error: 'Agendamento não encontrado' });
     }
 
+    // Se estiver atualizando o paciente, verificar se existe
     if (updateData.pacienteId) {
       const pacienteExiste = await db
         .select()
@@ -183,6 +188,7 @@ export async function updateAgendamento(
       }
     }
 
+    // Se estiver atualizando o médico, verificar se existe
     if (updateData.medicoId) {
       const medicoExiste = await db
         .select()
@@ -195,42 +201,42 @@ export async function updateAgendamento(
     }
 
     // Se estiver atualizando a data, verificar conflitos
-    // if (updateData.data) {
-    //   const agendaData = new Date(updateData.data);
-    //   const agendaDataFim = new Date(agendaData);
-    //   agendaDataFim.setMinutes(agendaDataFim.getMinutes() + 30);
+    if (updateData.data) {
+      const agendaData = new Date(updateData.data);
+      const agendaDataFim = new Date(agendaData);
+      agendaDataFim.setMinutes(agendaDataFim.getMinutes() + 30);
 
-    //   const medicoId = updateData.medicoId || existingAgendamento[0].medicoId;
+      const medicoId = updateData.medicoId || existingAgendamento[0].medicoId;
 
-    //   const agendamentosConflitantes = await db
-    //     .select()
-    //     .from(agendamentos)
-    //     .where(
-    //       and(
-    //         eq(agendamentos.medicoId, medicoId),
-    //         gte(agendamentos.data, agendaData),
-    //         lte(agendamentos.data, agendaDataFim),
-    //         eq(agendamentos.status, 'agendado'),
-    //         eq(agendamentos.id, id, true)
-    //       )
-    //     );
+      const agendamentosConflitantes = await db
+        .select()
+        .from(agendamentos)
+        .where(
+          and(
+            eq(agendamentos.medicoId, medicoId),
+            gte(agendamentos.data, agendaData),
+            lte(agendamentos.data, agendaDataFim),
+            eq(agendamentos.status, 'agendado'),
+            ne(agendamentos.id, id)
+          )
+        );
 
-    //   if (agendamentosConflitantes.length > 0) {
-    //     return reply.code(400).send({
-    //       error: 'Já existe um agendamento neste horário para este médico',
-    //     });
-    //   }
+      if (agendamentosConflitantes.length > 0) {
+        return reply.code(400).send({
+          error: 'Já existe um agendamento neste horário para este médico',
+        });
+      }
 
-    //   updateData.data = agendaData;
-    // }
+      updateData.data = agendaData;
+    }
 
-    // const result = await db
-    //   .update(agendamentos)
-    //   .set(updateData)
-    //   .where(eq(agendamentos.id, id))
-    //   .returning();
+    const result = await db
+      .update(agendamentos)
+      .set(updateData)
+      .where(eq(agendamentos.id, id))
+      .returning();
 
-    // return reply.code(200).send(result[0]);
+    return reply.code(200).send(result[0]);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Erro ao atualizar agendamento' });
@@ -244,6 +250,7 @@ export async function deleteAgendamento(
   try {
     const { id } = getAgendamentoParamsSchema.parse(request.params);
 
+    // Verificar se o agendamento existe
     const existingAgendamento = await db.select().from(agendamentos).where(eq(agendamentos.id, id));
 
     if (existingAgendamento.length === 0) {
